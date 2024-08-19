@@ -2,6 +2,27 @@ provider "aws" {
   region = "us-east-1"
 }
 
+# IAM Role for ECS Task Execution
+resource "aws_iam_role" "ecs_task_execution_role" {
+  name = "ecsTaskExecutionRole"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Action    = "sts:AssumeRole"
+      Effect    = "Allow"
+      Principal = {
+        Service = "ecs-tasks.amazonaws.com"
+      }
+    }]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "ecs_task_execution_role_policy" {
+  role       = aws_iam_role.ecs_task_execution_role.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
+}
+
 # Create ECS Cluster
 resource "aws_ecs_cluster" "ecs_cluster" {
   name = "my-ecs-cluster"
@@ -18,11 +39,12 @@ resource "aws_ecr_repository" "email_sender" {
 
 # Define ECS Task Definitions
 resource "aws_ecs_task_definition" "notification_api" {
-  family                = "notification-api-task"
-  network_mode          = "awsvpc"
+  family                   = "notification-api-task"
+  network_mode             = "awsvpc"
   requires_compatibilities = ["FARGATE"]
-  cpu                   = "256"
-  memory                = "512"
+  cpu                      = "256"
+  memory                   = "512"
+  execution_role_arn       = aws_iam_role.ecs_task_execution_role.arn
 
   container_definitions = jsonencode([{
     name      = "notification-api"
@@ -40,11 +62,12 @@ resource "aws_ecs_task_definition" "notification_api" {
 }
 
 resource "aws_ecs_task_definition" "email_sender" {
-  family                = "email-sender-task"
-  network_mode          = "awsvpc"
+  family                   = "email-sender-task"
+  network_mode             = "awsvpc"
   requires_compatibilities = ["FARGATE"]
-  cpu                   = "256"
-  memory                = "512"
+  cpu                      = "256"
+  memory                   = "512"
+  execution_role_arn       = aws_iam_role.ecs_task_execution_role.arn
 
   container_definitions = jsonencode([{
     name      = "email-sender"
@@ -66,8 +89,8 @@ resource "aws_lb" "application_load_balancer" {
   name               = "application-load-balancer"
   internal           = false
   load_balancer_type = "application"
-  security_groups    = ["sg-12345678"] # Replace with your security group ID
-  subnets            = ["subnet-12345678"] # Replace with your subnet ID
+  security_groups    = ["sg-abcde12345"]  # Replace with your security group ID
+  subnets            = ["subnet-abcde12345"]  # Replace with your subnet ID
   enable_deletion_protection = false
 }
 
@@ -76,14 +99,14 @@ resource "aws_lb_target_group" "notification_api_target_group" {
   name     = "notification-api-target-group"
   port     = 80
   protocol = "HTTP"
-  vpc_id   = "vpc-12345678" # Replace with your VPC ID
+  vpc_id   = "vpc-abcde12345"  # Replace with your VPC ID
 }
 
 resource "aws_lb_target_group" "email_sender_target_group" {
   name     = "email-sender-target-group"
   port     = 80
   protocol = "HTTP"
-  vpc_id   = "vpc-12345678" # Replace with your VPC ID
+  vpc_id   = "vpc-abcde12345"  # Replace with your VPC ID
 }
 
 # Create ECS Services
@@ -95,9 +118,9 @@ resource "aws_ecs_service" "notification_api_service" {
   launch_type     = "FARGATE"
   
   network_configuration {
-    subnets          = ["subnet-12345678"] # Replace with your subnet ID
+    subnets          = ["subnet-abcde12345"]  # Replace with your subnet ID
     assign_public_ip = true
-    security_groups  = ["sg-12345678"]     # Replace with your security group ID
+    security_groups  = ["sg-abcde12345"]  # Replace with your security group ID
   }
 
   load_balancer {
@@ -115,9 +138,9 @@ resource "aws_ecs_service" "email_sender_service" {
   launch_type     = "FARGATE"
   
   network_configuration {
-    subnets          = ["subnet-12345678"] # Replace with your subnet ID
+    subnets          = ["subnet-abcde12345"]  # Replace with your subnet ID
     assign_public_ip = true
-    security_groups  = ["sg-12345678"]     # Replace with your security group ID
+    security_groups  = ["sg-abcde12345"]  # Replace with your security group ID
   }
 
   load_balancer {
@@ -132,7 +155,7 @@ resource "aws_autoscaling_group" "ecs_asg" {
   desired_capacity     = 2
   max_size             = 5
   min_size             = 1
-  vpc_zone_identifier  = ["subnet-12345678"] # Replace with your subnet ID
+  vpc_zone_identifier  = ["subnet-abcde12345"]  # Replace with your subnet ID
   target_group_arns    = [aws_lb_target_group.notification_api_target_group.arn, aws_lb_target_group.email_sender_target_group.arn]
   launch_configuration = aws_launch_configuration.ecs_launch_config.id
 }
@@ -140,9 +163,9 @@ resource "aws_autoscaling_group" "ecs_asg" {
 # Create Launch Configuration for Auto Scaling Group
 resource "aws_launch_configuration" "ecs_launch_config" {
   name                        = "ecs-launch-config"
-  image_id                    = "ami-12345678" # Replace with your AMI ID
+  image_id                    = "ami-12345678"  # Replace with your AMI ID
   instance_type               = "t2.micro"
-  security_groups             = ["sg-12345678"] # Replace with your security group ID
+  security_groups             = ["sg-abcde12345"]  # Replace with your security group ID
   associate_public_ip_address = true
 
   lifecycle {
